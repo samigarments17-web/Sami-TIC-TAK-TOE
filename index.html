@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Rainbow Tic Tac Toe</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial, sans-serif;
+      background: linear-gradient(45deg, red, orange, yellow, green, blue, indigo, violet);
+      background-size: 400% 400%;
+      animation: gradient 8s ease infinite;
+      text-align: center;
+      color: white;
+    }
+    @keyframes gradient {
+      0% {background-position: 0% 50%;}
+      50% {background-position: 100% 50%;}
+      100% {background-position: 0% 50%;}
+    }
+    h1 { margin-top: 20px; font-size: 2.5em; }
+    .menu button {
+      display: block;
+      width: 80%;
+      margin: 15px auto;
+      padding: 15px;
+      font-size: 1.5em;
+      border: none;
+      border-radius: 10px;
+      background: rgba(255,255,255,0.2);
+      color: white;
+      cursor: pointer;
+    }
+    .board {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 5px;
+      max-width: 300px;
+      margin: 30px auto;
+    }
+    .cell {
+      background: rgba(255,255,255,0.3);
+      font-size: 3em;
+      aspect-ratio: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      border-radius: 8px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Rainbow Tic Tac Toe</h1>
+  <div class="menu">
+    <button onclick="startVsComputer()">Play vs Computer</button>
+    <button onclick="startLocal()">Play with Friend</button>
+    <button onclick="startOnline()">Play Online</button>
+  </div>
+  <div class="board" id="board"></div>
+
+<script src="https://cdn.socket.io/4.3.2/socket.io.min.js"></script>
+<script>
+  let boardEl = document.getElementById('board');
+  let cells = [];
+  let currentPlayer = 'X';
+  let gameMode = '';
+  let socket = null;
+  let roomId = null;
+
+  function renderBoard() {
+    boardEl.innerHTML = '';
+    cells = Array(9).fill('');
+    for (let i = 0; i < 9; i++) {
+      let cell = document.createElement('div');
+      cell.className = 'cell';
+      cell.addEventListener('click', () => handleMove(i));
+      boardEl.appendChild(cell);
+    }
+  }
+
+  function handleMove(index) {
+    if (cells[index] !== '') return;
+
+    if (gameMode === 'online') {
+      socket.emit('makeMove', {roomId, index, player: currentPlayer});
+    } else {
+      makeMove(index, currentPlayer);
+      if (gameMode === 'computer' && !checkWinner()) {
+        setTimeout(aiMove, 500);
+      }
+    }
+  }
+
+  function makeMove(index, player) {
+    if (cells[index] !== '') return;
+    cells[index] = player;
+    boardEl.children[index].textContent = player;
+    if (checkWinner()) {
+      setTimeout(() => alert(player + ' wins!'), 100);
+    }
+    currentPlayer = currentPlayer === 'X' ? 'O' : 'X';
+  }
+
+  function checkWinner() {
+    const wins = [[0,1,2],[3,4,5],[6,7,8],[0,3,6],[1,4,7],[2,5,8],[0,4,8],[2,4,6]];
+    return wins.some(pattern =>
+      pattern.every(i => cells[i] === currentPlayer)
+    );
+  }
+
+  function aiMove() {
+    const empty = cells.map((c,i) => c === '' ? i : null).filter(v => v !== null);
+    const move = empty[Math.floor(Math.random() * empty.length)];
+    makeMove(move, currentPlayer);
+  }
+
+  function startVsComputer() {
+    gameMode = 'computer';
+    currentPlayer = 'X';
+    renderBoard();
+  }
+
+  function startLocal() {
+    gameMode = 'local';
+    currentPlayer = 'X';
+    renderBoard();
+  }
+
+  function startOnline() {
+    gameMode = 'online';
+    currentPlayer = 'X';
+    renderBoard();
+    socket = io('https://YOUR-SERVER-URL'); // <-- Replace with your hosted backend URL
+    socket.on('waiting', msg => alert(msg));
+    socket.on('startGame', data => {
+      roomId = data.roomId;
+      alert('Game started!');
+    });
+    socket.on('moveMade', data => {
+      makeMove(data.index, data.player);
+    });
+  }
+</script>
+</body>
+</html>
